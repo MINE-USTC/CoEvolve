@@ -192,6 +192,49 @@ def _format_skill_cards(available_skill_metadata: List[Dict[str, Any]]) -> str:
     return "\n\n".join(blocks)
 
 
+def _format_existing_skill_metadata(existing_skill_metadata: List[Dict[str, Any]] | None) -> str:
+    if not existing_skill_metadata:
+        return "No existing skill metadata available."
+    blocks: List[str] = []
+    for item in existing_skill_metadata:
+        name = str(item.get("skill_name", "")).strip() or "Unknown skill"
+        base_skill = str(item.get("base_skill", "")).strip()
+        description = _short_text(item.get("description", ""), 220) or "No description."
+        note = _short_text(item.get("note", ""), 220) or "No additional notes."
+        template_type = str(item.get("template_type", "")).strip() or "Unknown"
+        stage_count = str(item.get("stage_count", "")).strip()
+        fixed_field = str(item.get("fixed_skill_memory_field", "")).strip()
+        phases = [str(phase).strip() for phase in item.get("phases", []) or [] if str(phase).strip()]
+        stages = list(item.get("stages", []) or [])
+
+        lines = [
+            f"[{name}]",
+            f"Base skill: {base_skill or 'N/A'}",
+            f"Description: {description}",
+            f"Note: {note}",
+            f"Template type: {template_type}",
+            f"Stage count: {stage_count or str(len(stages) or 1)}",
+            f"Phases: {', '.join(phases) if phases else 'N/A'}",
+            f"Dedicated skill-memory field: {fixed_field or 'N/A'}",
+            "Stages:",
+        ]
+        if not stages:
+            lines.append("  - No stage definition available.")
+        for index, stage in enumerate(stages, start=1):
+            if not isinstance(stage, dict):
+                continue
+            stage_name = str(stage.get("stage_name", "")).strip() or f"stage_{index}"
+            stage_role = str(stage.get("stage_role", "")).strip() or "unknown_role"
+            requires_action = stage.get("requires_action", "unknown")
+            prompt_template = _short_text(stage.get("prompt_template", ""), 180) or "No prompt."
+            lines.append(
+                f"  - Stage {index}: name={stage_name}; role={stage_role}; "
+                f"requires_action={requires_action}; prompt={prompt_template}"
+            )
+        blocks.append("\n".join(lines))
+    return "\n\n".join(blocks)
+
+
 def _format_selected_skill_detail(selected_skill_name: str, selected_skill_detail: Dict[str, Any]) -> str:
     detail = dict(selected_skill_detail or {})
     template_type = str(detail.get("template_type", "")).strip() or "Unknown"
@@ -1050,6 +1093,7 @@ Hard rules:
 def build_skill_memory_structure_evolution_prompts(
     current_memory_metadata_fields: List[str],
     contrast_cases: List[Dict[str, Any]],
+    existing_skill_metadata: List[Dict[str, Any]] | None = None,
 ) -> tuple[str, str]:
     system_prompt = (
         "You are a memory architecture designer for a multi-agent system (MAS). "
@@ -1094,6 +1138,8 @@ Successful pivot step (detailed):
 {success_pivot}
 """
 
+    existing_skills_text = _format_existing_skill_metadata(existing_skill_metadata)
+
     user_prompt = f"""
 We need you to evolve the skill memory structure. You must ONLY modify fields inside the memory_metadata dict. Do NOT touch other fields (task_description, task_goal, subgoal, state_trace_summary, etc.).
 
@@ -1103,6 +1149,9 @@ Carefully compare the failed trajectories with the counterfactual successful tra
 - What should be remembered so the coordinator can make better skill selections in similar future situations?
 
 Summarize your findings as memory_metadata fields. These fields will be stored per skill-memory entry and used by the coordinator when selecting skills.
+
+Existing skills available to the coordinator:
+{existing_skills_text}
 
 Below are the contrastive trajectory pairs:
 {cases_text}
@@ -1116,7 +1165,8 @@ Requirements:
 3. Fields must be semantically distinct from the outer entry fields (task_description, task_goal, subgoal, state_trace_summary, recent_environment_feedback, stage_assignments, stage_subgoals).
 4. These fields will be stored for a SINGLE trajectory step, not for comparing two trajectories. Do NOT design fields like "comparison_result" or "trajectory_diff".
 5. Fields should help the coordinator decide: in this state, should I pick skill A or skill B?
-6. Keep the total number of memory_metadata fields between 2-6.
+6. Use the existing skill metadata to understand what kinds of selection cues distinguish the available skills, but design general memory fields rather than fields tied to one hard-coded task.
+7. Keep the total number of memory_metadata fields between 2-6.
 
 Return JSON with exactly these keys:
 - fields: list of new memory_metadata field names (list[str])
@@ -1136,6 +1186,7 @@ def build_executor_memory_structure_evolution_prompts(
     current_memory_metadata_fields: List[str],
     current_failure_metadata_fields: List[str],
     contrast_cases: List[Dict[str, Any]],
+    existing_skill_metadata: List[Dict[str, Any]] | None = None,
 ) -> tuple[str, str]:
     system_prompt = (
         "You are a memory architecture designer for a multi-agent system (MAS). "
@@ -1183,6 +1234,8 @@ Successful pivot step (detailed — {agent_name} was absent):
 {success_pivot}
 """
 
+    existing_skills_text = _format_existing_skill_metadata(existing_skill_metadata)
+
     user_prompt = f"""
 We need you to evolve the executor memory structure for agent "{agent_name}". You must ONLY modify fields inside the memory_metadata dicts.
 
@@ -1198,6 +1251,9 @@ Design:
 - failure memory fields: what "{agent_name}" should remember specifically from failed actions, wrong assumptions, and repair strategies
 
 These fields will be stored per executor-memory entry and retrieved when "{agent_name}" faces similar situations.
+
+Existing skills and stages that executors may be assigned to:
+{existing_skills_text}
 
 Below are the contrastive trajectory pairs:
 {cases_text}
@@ -1215,8 +1271,9 @@ Requirements:
 4. These fields will be stored for a SINGLE executor action, not for comparing trajectories.
 5. Positive-memory fields should help "{agent_name}" decide: in this state + this stage, what action should I take and what should I watch out for?
 6. Failure-memory fields should help "{agent_name}" remember: what failed, what assumption was wrong, and what correction or recovery should happen next.
-7. Keep the total number of positive-memory fields between 2-6.
-8. Keep the total number of failure-memory fields between 2-6.
+7. Use the existing skill and stage metadata to understand the stage roles this agent may face, but design general memory fields rather than fields tied to one hard-coded task.
+8. Keep the total number of positive-memory fields between 2-6.
+9. Keep the total number of failure-memory fields between 2-6.
 
 Return JSON with exactly these keys:
 - success_fields: list of new positive-memory field names (list[str])

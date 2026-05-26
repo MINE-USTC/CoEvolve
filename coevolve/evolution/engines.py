@@ -21,6 +21,27 @@ from ..schema import (
 from ..scoring import compute_step_scores
 
 
+def _skill_metadata_for_prompt(skill_library: Dict[str, SkillSpec] | None) -> List[Dict[str, Any]]:
+    metadata: List[Dict[str, Any]] = []
+    for name, spec in (skill_library or {}).items():
+        selection_meta = dict(spec.selection_metadata or {})
+        detail = dict(spec.detail or {})
+        spec_meta = dict(spec.metadata or {})
+        stages = list(detail.get("stages", []) or [])
+        metadata.append({
+            "skill_name": name,
+            "base_skill": spec.base_skill,
+            "description": str(selection_meta.get("description", "")),
+            "note": str(selection_meta.get("note", "")),
+            "fixed_skill_memory_field": str(spec_meta.get("fixed_skill_memory_field", "")),
+            "template_type": str(detail.get("template_type", "solo")),
+            "stage_count": int(detail.get("stage_count", len(stages) or 1) or 1),
+            "stages": stages,
+            "phases": list(spec.phases or []),
+        })
+    return metadata
+
+
 class SkillEvolutionEngine:
     def __init__(
         self,
@@ -252,18 +273,7 @@ class SkillEvolutionEngine:
         existing_skill_names: List[str],
         skill_library: Dict[str, SkillSpec] | None = None,
     ) -> Dict[str, Any] | None:
-        existing_skill_metadata: List[Dict[str, Any]] = []
-        if skill_library:
-            for name, spec in skill_library.items():
-                meta = spec.selection_metadata or {}
-                existing_skill_metadata.append({
-                    "skill_name": name,
-                    "description": str(meta.get("description", "")),
-                    "note": str(meta.get("note", "")),
-                    "fixed_skill_memory_field": str(dict(spec.metadata or {}).get("fixed_skill_memory_field", "")),
-                    "template_type": str(spec.detail.get("template_type", "solo")),
-                    "stages": spec.detail.get("stages", []),
-                })
+        existing_skill_metadata = _skill_metadata_for_prompt(skill_library)
         system_prompt, user_prompt = build_skill_generation_prompts(
             generation_mode=generation_mode,
             candidate=candidate,
@@ -519,18 +529,8 @@ class SkillEvolutionEngine:
         if not seed_phases:
             seed_phases = ["reflect", "execute"]
 
-        # Build existing skill details for prompt
-        existing_skill_details: List[Dict[str, Any]] = []
-        for name, spec in skill_library.items():
-            meta = spec.selection_metadata or {}
-            existing_skill_details.append({
-                "skill_name": name,
-                "description": str(meta.get("description", "")),
-                "note": str(meta.get("note", "")),
-                "fixed_skill_memory_field": str(dict(spec.metadata or {}).get("fixed_skill_memory_field", "")),
-                "template_type": str(spec.detail.get("template_type", "solo")),
-                "stages": spec.detail.get("stages", []),
-            })
+        # Build existing skill details for prompt.
+        existing_skill_details = _skill_metadata_for_prompt(skill_library)
 
         return [{
             "phases": seed_phases[:3],
@@ -677,9 +677,11 @@ class SkillMemoryEvolutionEngine:
             )
 
         current_metadata_fields = list(skill_memory_store.metadata_fields)
+        existing_skill_metadata = _skill_metadata_for_prompt(lib)
         proposal = self._propose_metadata_fields(
             current_metadata_fields=current_metadata_fields,
             contrast_cases=contrast_cases,
+            existing_skill_metadata=existing_skill_metadata,
         )
         if not proposal:
             return EvolutionArtifact(
@@ -793,10 +795,12 @@ class SkillMemoryEvolutionEngine:
         self,
         current_metadata_fields: List[str],
         contrast_cases: List[Dict[str, Any]],
+        existing_skill_metadata: List[Dict[str, Any]],
     ) -> Dict[str, Any] | None:
         system_prompt, user_prompt = build_skill_memory_structure_evolution_prompts(
             current_memory_metadata_fields=current_metadata_fields,
             contrast_cases=contrast_cases,
+            existing_skill_metadata=existing_skill_metadata,
         )
         try:
             response = self.llm_client.chat.completions.create(
@@ -855,6 +859,7 @@ class ExecutorMemoryEvolutionEngine:
         changed_by_agent: Dict[str, int] = {}
         success_fields_by_agent: Dict[str, List[str]] = {}
         failure_fields_by_agent: Dict[str, List[str]] = {}
+        existing_skill_metadata = _skill_metadata_for_prompt(lib)
 
         for agent_name, store in executor_memories.items():
             # Find counterfactuals where THIS agent was removed and task succeeded
@@ -875,6 +880,7 @@ class ExecutorMemoryEvolutionEngine:
                 current_metadata_fields=current_fields,
                 current_failure_metadata_fields=current_failure_fields,
                 contrast_cases=agent_cases,
+                existing_skill_metadata=existing_skill_metadata,
             )
             if not proposal:
                 changed_by_agent[agent_name] = 0
@@ -992,12 +998,14 @@ class ExecutorMemoryEvolutionEngine:
         current_metadata_fields: List[str],
         current_failure_metadata_fields: List[str],
         contrast_cases: List[Dict[str, Any]],
+        existing_skill_metadata: List[Dict[str, Any]],
     ) -> Dict[str, Any] | None:
         system_prompt, user_prompt = build_executor_memory_structure_evolution_prompts(
             agent_name=agent_name,
             current_memory_metadata_fields=current_metadata_fields,
             current_failure_metadata_fields=current_failure_metadata_fields,
             contrast_cases=contrast_cases,
+            existing_skill_metadata=existing_skill_metadata,
         )
         try:
             response = self.llm_client.chat.completions.create(
