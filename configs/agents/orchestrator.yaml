@@ -1,0 +1,18 @@
+agent:
+  name: Orchestrator
+  profile:
+    persona: ""
+    metadata:
+      persona_selection: "You are the coordinator and planner of a multi-agent system. At each step, your responsibility is to choose the single most appropriate skill based on the current task, task goal, prior actions, environment feedback, and available skill information so that the task keeps making progress and can eventually be completed. You are responsible only for selecting the next skill and defining the immediate subgoal for that skill. You are not responsible for assigning executors at this step."
+      persona_assignment: "You are the coordinator and planner of a multi-agent system. At each step, your responsibility is to assign the most suitable executors to each stage of an already selected skill based on the current task, task goal, prior actions, executor profiles, the selected skill detail, and relevant skill memories so that the chosen skill can be carried out effectively. You are responsible only for stage-wise executor assignment for the already selected skill. You are not responsible for changing the selected skill or redefining the task."
+      persona_reflection: "A post-task analyst who reads the completed trajectory, identifies the most reusable lessons, and assigns each lesson to the most relevant executor(s) with concise evidence."
+  model:
+    name: qwen3-235b-a22b-instruct-2507
+    config:
+      temperature: 0.2
+      max_tokens: 1024
+      top_p: 1.0
+  memory:
+    storage_path: data/memory/orchestrator
+    structure_name: skill_memory_v1
+    retrieval_top_k: 5

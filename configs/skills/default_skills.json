@@ -1,0 +1,216 @@
+{
+  "task_skills": {
+    "alfworld": {
+      "skills": [
+        {
+          "skill_name": "plan",
+          "base_skill": "plan",
+          "source": "primitive",
+          "selection_metadata": {
+            "description": "Planning step for ALFWorld tasks when the next action benefits from brief reasoning before acting.",
+            "note": "Use it to outline a short next-step plan from the current task, goal, and observation history without interacting with the environment.",
+            "golden_example_id": "",
+            "selection_tags": ["solo", "plan", "decomposition"],
+            "agent_count_hint": "1"
+          },
+          "detail": {
+            "template_type": "solo",
+            "memory_top_k": 3,
+            "stage_count": 1,
+            "stages": [
+              {
+                "stage_name": "plan_stage",
+                "stage_role": "plan",
+                "prompt_template": "Produce a brief 1-3 step plan for the current ALFWorld stage goal using the task, goal, current observation, and prior trace. This stage is for reasoning only: keep proposed_action empty. Put only concise coordination notes in special_notes when useful.",
+                "requires_action": false
+              }
+            ]
+          },
+          "phases": ["plan"],
+          "metadata": {
+            "fixed_skill_memory_field": "planning_route_evidence",
+            "lifecycle": {
+              "status": "active"
+            },
+            "fixed_skill_memory_field_role": "dedicated_skill_decision_context",
+            "dedicated_field_description": "Stores route order, likely locations, and precondition evidence that should shape future planning decisions."
+          }
+        },
+        {
+          "skill_name": "execute",
+          "base_skill": "execute",
+          "source": "primitive",
+          "selection_metadata": {
+            "description": "Execution step for producing one valid ALFWorld environment command from the current observation and stage goal.",
+            "note": "Use it when the next step should directly interact with the ALFWorld environment.",
+            "golden_example_id": "",
+            "selection_tags": ["solo", "execute", "action"],
+            "agent_count_hint": "1"
+          },
+          "detail": {
+            "template_type": "solo",
+            "memory_top_k": 3,
+            "stage_count": 1,
+            "stages": [
+              {
+                "stage_name": "execute_stage",
+                "stage_role": "execute",
+                "prompt_template": "Generate exactly one valid ALFWorld environment command in proposed_action and no extra text inside the action field. Base the action on the current task, goal, observation, and prior trace. Use special_notes only for brief coordination notes.",
+                "requires_action": true
+              }
+            ]
+          },
+          "phases": ["execute"],
+          "metadata": {
+            "fixed_skill_memory_field": "action_precondition_cue",
+            "lifecycle": {
+              "status": "active"
+            },
+            "fixed_skill_memory_field_role": "dedicated_skill_decision_context",
+            "dedicated_field_description": "Stores action-level cues about visibility, source, held state, container state, and command preconditions."
+          }
+        },
+        {
+          "skill_name": "reflect",
+          "base_skill": "reflect",
+          "source": "primitive",
+          "selection_metadata": {
+            "description": "Diagnostic step for reviewing the recent ALFWorld trace before the next command.",
+            "note": "Use it when the system should reason about the current state and provide concise guidance without interacting with the environment.",
+            "golden_example_id": "",
+            "selection_tags": ["solo", "reflect", "repair"],
+            "agent_count_hint": "1"
+          },
+          "detail": {
+            "template_type": "solo",
+            "memory_top_k": 3,
+            "stage_count": 1,
+            "stages": [
+              {
+                "stage_name": "reflect_stage",
+                "stage_role": "reflect",
+                "prompt_template": "Analyze the current ALFWorld trace and summarize the current state, uncertainty, and a useful next-step direction. This stage is for diagnosis only: keep proposed_action empty. Put concise guidance in special_notes when useful.",
+                "requires_action": false
+              }
+            ]
+          },
+          "phases": ["reflect"],
+          "metadata": {
+            "fixed_skill_memory_field": "recovery_failure_signature",
+            "lifecycle": {
+              "status": "active"
+            },
+            "fixed_skill_memory_field_role": "dedicated_skill_decision_context",
+            "dedicated_field_description": "Stores signatures of stalled traces and the concrete recovery cue that should guide later reflection."
+          }
+        }
+      ]
+    },
+    "webshop": {
+      "skills": [
+        {
+          "skill_name": "plan",
+          "base_skill": "plan",
+          "source": "primitive",
+          "selection_metadata": {
+            "description": "Planning step for WebShop tasks when the next action benefits from brief reasoning before acting.",
+            "note": "Use it to summarize the shopping goal and current page context without interacting with the environment.",
+            "golden_example_id": "",
+            "selection_tags": ["solo", "plan", "decomposition", "webshop"],
+            "agent_count_hint": "1"
+          },
+          "detail": {
+            "template_type": "solo",
+            "memory_top_k": 3,
+            "stage_count": 1,
+            "stages": [
+              {
+                "stage_name": "plan_stage",
+                "stage_role": "plan",
+                "prompt_template": "Produce a brief 1-3 step WebShop plan using the instruction, current page, and recent trajectory. This stage is reasoning only: keep proposed_action empty. Put only concise coordination notes in special_notes when useful.",
+                "requires_action": false
+              }
+            ]
+          },
+          "phases": ["plan"],
+          "metadata": {
+            "fixed_skill_memory_field": "shopping_plan_evidence",
+            "lifecycle": {
+              "status": "active"
+            },
+            "fixed_skill_memory_field_role": "dedicated_skill_decision_context",
+            "dedicated_field_description": "Stores product type, hard constraints, budget, query plan, and candidate browsing priorities."
+          }
+        },
+        {
+          "skill_name": "execute",
+          "base_skill": "execute",
+          "source": "primitive",
+          "selection_metadata": {
+            "description": "Execution step for producing exactly one valid WebShop action from the current page and stage goal.",
+            "note": "Use it when the next step should directly interact with the WebShop environment.",
+            "golden_example_id": "",
+            "selection_tags": ["solo", "execute", "action", "webshop"],
+            "agent_count_hint": "1"
+          },
+          "detail": {
+            "template_type": "solo",
+            "memory_top_k": 3,
+            "stage_count": 1,
+            "stages": [
+              {
+                "stage_name": "execute_stage",
+                "stage_role": "execute",
+                "prompt_template": "Generate exactly one valid WebShop environment action in proposed_action and no extra text inside the action field. The only valid formats are search[keywords] and click[value]. Base the action on the current task, goal, page observation, available actions, and prior trace. Use special_notes only for brief coordination notes.",
+                "requires_action": true
+              }
+            ]
+          },
+          "phases": ["execute"],
+          "metadata": {
+            "fixed_skill_memory_field": "action_validity_cue",
+            "lifecycle": {
+              "status": "active"
+            },
+            "fixed_skill_memory_field_role": "dedicated_skill_decision_context",
+            "dedicated_field_description": "Stores current page, visible actions/options, repeated-search/evidence-loop risk, and whether the next valid action should be purchase-oriented."
+          }
+        },
+        {
+          "skill_name": "reflect",
+          "base_skill": "reflect",
+          "source": "primitive",
+          "selection_metadata": {
+            "description": "Diagnostic step for reviewing the recent WebShop trace before the next action.",
+            "note": "Use it when the system should reason about the current page state and provide concise guidance without interacting with the environment.",
+            "golden_example_id": "",
+            "selection_tags": ["solo", "reflect", "repair", "webshop"],
+            "agent_count_hint": "1"
+          },
+          "detail": {
+            "template_type": "solo",
+            "memory_top_k": 3,
+            "stage_count": 1,
+            "stages": [
+              {
+                "stage_name": "reflect_stage",
+                "stage_role": "reflect",
+                "prompt_template": "Analyze the current WebShop trace and summarize the current page state, uncertainty, and a useful next-step direction. This stage is diagnostic only: keep proposed_action empty. Put concise guidance in special_notes when useful.",
+                "requires_action": false
+              }
+            ]
+          },
+          "phases": ["reflect"],
+          "metadata": {
+            "fixed_skill_memory_field": "shopping_recovery_signature",
+            "lifecycle": {
+              "status": "active"
+            },
+            "fixed_skill_memory_field_role": "dedicated_skill_decision_context",
+            "dedicated_field_description": "Stores search, option, evidence, or repeated-buy failure signatures for recovery decisions."
+          }
+        }
+      ]
+    }
+  }
+}

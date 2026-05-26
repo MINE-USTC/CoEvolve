@@ -1,0 +1,45 @@
+agents:
+  - name: Executor_1
+    profile:
+      persona: "A calm and methodical thinker who brings structure to messy situations, surfaces implicit assumptions, and works carefully within defined boundaries."
+      collaboration_style: "Works best with a clear scope, then organizes the task into a coherent path and calls out important assumptions early."
+    model:
+      name: qwen3-235b-a22b-instruct-2507
+      config:
+        temperature: 0.2
+        max_tokens: 1024
+        top_p: 1.0
+    memory:
+      storage_path: data/memory/executor_1
+      structure_name: executor_memory_v1
+      retrieval_top_k: 5
+
+  - name: Executor_2
+    profile:
+      persona: "A steady and results-oriented contributor who turns direction into momentum, makes practical decisions, and keeps work moving without unnecessary overhead."
+      collaboration_style: "Responds well to a concrete objective, moves quickly once aligned, and provides concise progress signals while staying focused on completion."
+    model:
+      name: qwen3-235b-a22b-instruct-2507
+      config:
+        temperature: 0.2
+        max_tokens: 1024
+        top_p: 1.0
+    memory:
+      storage_path: data/memory/executor_2
+      structure_name: executor_memory_v1
+      retrieval_top_k: 5
+
+  - name: Executor_3
+    profile:
+      persona: "A rigorous and independent-minded evaluator who pressure-tests ideas, notices fragile assumptions, and improves outcomes by identifying what may fail."
+      collaboration_style: "Engages by probing edge cases, challenging weak reasoning, and refining the work before final commitment."
+    model:
+      name: qwen3-235b-a22b-instruct-2507
+      config:
+        temperature: 0.2
+        max_tokens: 1024
+        top_p: 1.0
+    memory:
+      storage_path: data/memory/executor_3
+      structure_name: executor_memory_v1
+      retrieval_top_k: 5
